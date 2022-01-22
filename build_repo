@@ -1,0 +1,36 @@
+#!/bin/bash
+
+OS_NAME=ubuntu:18.04
+
+function pack_in_docker()
+{
+    rm -rf /etc/apt/apt.conf.d/docker-clean
+    MIRROR=mirrors.aliyun.com
+    #MIRROR=mirrors.huaweicloud.com
+    sed -i "s|archive.ubuntu.com|${MIRROR}|g;s|security.ubuntu.com|${MIRROR}|g" \
+        /etc/apt/sources.list && apt-get update
+    PACKS=$* ##想要离线安装的软件包
+    apt-get install --yes --no-install-recommends dpkg-dev #必要依赖
+    apt-get install --yes ${PACKS} || exit -1
+
+    PACK_DIR=/pack
+    PWD=`pwd`
+    rm -rf ${PACK_DIR}/*
+    sed "s|@PACKAGE_NAMES@|$*|g" ${PWD}/install.sh >${PACK_DIR}/install.sh
+    cp -r /var/cache/apt/archives ${PACK_DIR} && rm -rf ${PACK_DIR}/archives/{lock,partial}
+
+    ( cd ${PACK_DIR}; dpkg-scanpackages -m .|gzip -r > ${PACK_DIR}/Packages.gz)
+}
+
+function pack()
+{
+    local PWD NAME
+    PWD=`pwd`
+    test -z "$1" && { echo "No package name"; exit -1;}
+    NAME=`echo $*|sed "s|[ \t\r\n]\+|_|g"`
+    mkdir -p pack;
+    docker run -it --rm -v ${PWD}/pack:/pack -v ${PWD}:${PWD} --workdir `pwd`  ${OS_NAME} bash build_repo pack_in_docker $* \
+    && zip -r ${NAME}.zip pack && echo "" && echo "Offline Package: ${NAME}.zip"
+}
+
+test -n "$1" && $*
