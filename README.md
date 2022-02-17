@@ -4,7 +4,7 @@
 
 ## 2 设置安装的系统
     编辑文件build_repo，填写需要离线安装软件的系统版本
-    OS_NAME=ubuntu:18.04 #原则上debian、ubuntu均支持，但只测试了ubuntu 18.04
+    OS_NAME=ubuntu:18.04 #Debian、Ubuntu均支持，原则上其它类Debian的系统也同样支持
 
 ## 3 构建离线安装包
     在联网的机器上，运行：
