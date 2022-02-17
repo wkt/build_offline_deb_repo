@@ -8,7 +8,7 @@
 
 ## 3 构建离线安装包
     在联网的机器上，运行：
-    bash build_repo pack git openjdk-8-jdk # 创建git、openjdk-8-jdk的离线按照包
+    bash build_repo pack git openjdk-8-jdk # 创建git、openjdk-8-jdk的离线安装包
 
 ## 4 离线安装软件
     解压安装包
