@@ -13,35 +13,50 @@ function pack_in_docker()
         /etc/apt/sources.list && apt-get update
 
 
-    #添加 非官方打包软件（本例为docker）的源
-    #apt-get install -y --no-install-recommends apt-transport-https gnupg2 ca-certificates curl lsb-release
+    #添加 非官方打包软件的源
+    #apt-get install -y --no-install-recommends apt-transport-https gnupg2 ca-certificates curl
+
+    # docker
     #curl -fsSL https://${MIRROR}/docker-ce/linux/ubuntu/gpg | apt-key add -
     #echo "deb [arch=amd64] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable" >/etc/apt/sources.list.d/docker.list
-    #apt-get update
+
+    # cuda and cudnn
+    OS_NAME=$(echo ${OS_NAME}|sed 's|:||g;s|\.||g')
+    # shellcheck disable=SC2086
+    #curl -fsSL https://mirrors.aliyun.com/nvidia-cuda/${OS_NAME}/x86_64/7fa2af80.pub | apt-key add -
+    #echo "deb [allow-insecure=true trusted=true] https://mirrors.aliyun.com/nvidia-cuda/${OS_NAME}/x86_64/ /" > /etc/apt/sources.list.d/cuda.list && \
+    #echo "deb [allow-insecure=true trusted=true] https://developer.download.nvidia.com/compute/machine-learning/repos/${OS_NAME}/x86_64/ /" >> /etc/apt/sources.list.d/cuda.list
 
 
-    PACKS=$* ##想要离线安装的软件包
-    apt-get install --yes ${PACKS} || exit -1
+    apt-get update
+    PACKS=$* # 想要离线安装的软件包
+    # shellcheck disable=SC2086
+    apt-get install --yes --no-install-recommends ${PACKS} || exit 255
     apt-get install --yes --no-install-recommends dpkg-dev #必要依赖
 
     PACK_DIR=/pack
-    PWD=`pwd`
-    rm -rf ${PACK_DIR}/*
+    PWD=$(pwd)
     sed "s|@PACKAGE_NAMES@|$*|g" ${PWD}/install.sh >${PACK_DIR}/install.sh
-    cp -r /var/cache/apt/archives ${PACK_DIR} && rm -rf ${PACK_DIR}/archives/{lock,partial}
+    rm -rf ${PACK_DIR}/archives/{lock,partial}
 
-    ( cd ${PACK_DIR}; dpkg-scanpackages -m .|gzip -r > ${PACK_DIR}/Packages.gz)
+    ( cd ${PACK_DIR}; dpkg-scanpackages -m . > ${PACK_DIR}/Packages ; gzip -r Packages.gz < ${PACK_DIR}/Packages; )
 }
 
 function pack()
 {
     local PWD NAME
     PWD=`pwd`
-    test -z "$1" && { echo "No package name"; exit -1;}
-    NAME=`echo ${OS_NAME}-$*|sed "s|[ \t\r\n:]\+|_|g"`
-    mkdir -p pack;
-    docker run -it --rm -v ${PWD}/pack:/pack -v ${PWD}:${PWD} --workdir `pwd`  ${OS_NAME} bash build_repo pack_in_docker $* \
-    && zip -r ${NAME}.zip pack && echo "" && echo "Offline Package: ${NAME}.zip"
+    test -z "$1" && { echo "No package name"; exit 254;}
+    # shellcheck disable=SC2086
+    NAME=$(echo ${OS_NAME}-$*|sed "s|[ \t\r\n:]\+|_|g")
+    PACK_DIR=pack_$(date +"%Y-%m-%d-%H")
+    mkdir -p "${PACK_DIR}/archives";
+    # shellcheck disable=SC2086
+    docker run -it --rm -v "${PWD}/${PACK_DIR}":/pack \
+            -v "${PWD}/${PACK_DIR}/archives":/var/cache/apt/archives \
+            -v "${PWD}":"${PWD}" \
+            --workdir "${PWD}" -e OS_NAME=${OS_NAME} ${OS_NAME} bash build_repo pack_in_docker $* \
+    && zip -r ${NAME}.zip ${PACK_DIR} && echo "" && echo "Offline Package: ${NAME}.zip"
 }
 
 test -n "$1" && $*
