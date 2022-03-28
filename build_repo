@@ -6,7 +6,7 @@ function pack_in_docker()
 {
     rm -rf /etc/apt/apt.conf.d/docker-clean
     MIRROR=mirrors.aliyun.com
-    #MIRROR=mirrors.huaweicloud.com
+    MIRROR=mirrors.huaweicloud.com
 
     # 修改软件源为国内的源镜像地址
     sed -i "s|archive.ubuntu.com|${MIRROR}|g;s|security.ubuntu.com|${MIRROR}|g;s|deb.debian.org|${MIRROR}|g;s|security.debian.org|${MIRROR}|g;" \
@@ -32,14 +32,15 @@ function pack_in_docker()
     PACKS=$* # 想要离线安装的软件包
     # shellcheck disable=SC2086
     apt-get install --yes --no-install-recommends ${PACKS} || exit 255
-    apt-get install --yes --no-install-recommends dpkg-dev #必要依赖
+    apt-get install --yes --no-install-recommends dpkg-dev gzip #生成本地源的必要依赖
 
     PACK_DIR=/pack
     PWD=$(pwd)
     sed "s|@PACKAGE_NAMES@|$*|g" ${PWD}/install.sh >${PACK_DIR}/install.sh
     rm -rf ${PACK_DIR}/archives/{lock,partial}
 
-    ( cd ${PACK_DIR}; dpkg-scanpackages -m . > ${PACK_DIR}/Packages ; gzip -r Packages.gz < ${PACK_DIR}/Packages; )
+    set -x
+    ( cd ${PACK_DIR}; dpkg-scanpackages -m . > ${PACK_DIR}/Packages ; cat ${PACK_DIR}/Packages |gzip -r >Packages.gz; )
 }
 
 function pack()

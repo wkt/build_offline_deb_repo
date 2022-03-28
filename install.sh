@@ -12,6 +12,8 @@ __EOF
 fi
 
 rm -rf /var/lib/apt/lists/*
-apt-get update || exit 1
+mv /etc/apt/sources.list{,.bak}
+apt-get update
+mv /etc/apt/sources.list{.bak,}
 apt-get install --yes @PACKAGE_NAMES@
 rm -rf ${PACK_LIST}
