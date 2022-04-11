@@ -1,6 +1,10 @@
 #!/bin/bash
 
-test -z "${OS_NAME}" && OS_NAME=ubuntu:18.04
+test -z "${OS_NAME}" && OS_NAME=ubuntu:16.04
+IMAGE=${OS_NAME}
+
+test "${OS_NAME}" = "ubuntu:16.04" && IMAGE=ubuntu:xenial-20160422
+test "${OS_NAME}" = "ubuntu:18.04" && IMAGE=ubuntu:bionic-20180426
 
 function pack_in_docker()
 {
@@ -14,7 +18,7 @@ function pack_in_docker()
 
 
     #添加 非官方打包软件的源
-    #apt-get install -y --no-install-recommends apt-transport-https gnupg2 ca-certificates curl
+    #apt-get install -y --no-install-recommends apt-transport-https gnupg2 ca-certificates curl lsb-release
 
     # docker
     #curl -fsSL https://${MIRROR}/docker-ce/linux/ubuntu/gpg | apt-key add -
@@ -56,7 +60,7 @@ function pack()
     docker run -it --rm -v "${PWD}/${PACK_DIR}":/pack \
             -v "${PWD}/${PACK_DIR}/archives":/var/cache/apt/archives \
             -v "${PWD}":"${PWD}" \
-            --workdir "${PWD}" -e OS_NAME=${OS_NAME} ${OS_NAME} bash build_repo pack_in_docker $* \
+            --workdir "${PWD}" -e OS_NAME=${OS_NAME} ${IMAGE} bash build_repo pack_in_docker $* \
     && zip -r ${NAME}.zip ${PACK_DIR} && echo "" && echo "Offline Package: ${NAME}.zip"
 }
 
