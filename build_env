@@ -1,0 +1,63 @@
+#!/bin/bash
+##
+# 使用docker创建一个比较干净的软件环境（用于编译一些软件包）,
+# 同时避免在日常系统上安装一些平时不是很常用的软件等
+##
+
+OS_TAG=ubuntu:18.04
+OS_NAME=$(echo ${OS_TAG}|sed 's|:||g;s|\.||g')
+ARCHIVES_DIR=`pwd`/${OS_NAME}_archives ## for .deb file cache
+ENV_NAME=cann:v1 # 生成的docker镜像名称
+TEMP_DOCK_NAME="env_$(date "+%Y_%m_%d-%H_%M")"
+MIRROR=mirrors.aliyun.com
+MIRROR=mirrors.huaweicloud.com
+
+
+install(){
+  rm -rf /etc/apt/apt.conf.d/docker-clean && \
+       sed -i "s|archive.ubuntu.com|${MIRROR}|g;s|security.ubuntu.com|${MIRROR}|g;s|deb.debian.org|${MIRROR}|g;s|security.debian.org|${MIRROR}|g;" \
+          /etc/apt/sources.list && apt-get update
+
+  #添加 非系统官方软件源
+  #apt-get install -y --no-install-recommends apt-transport-https gnupg2 ca-certificates curl lsb-release
+
+  # cuda and cudnn
+  #curl -fsSL https://mirrors.aliyun.com/nvidia-cuda/${OS_NAME}/x86_64/7fa2af80.pub | apt-key add -
+  #echo "deb [allow-insecure=true trusted=true] https://mirrors.aliyun.com/nvidia-cuda/${OS_NAME}/x86_64/ /" > /etc/apt/sources.list.d/cuda.list && \
+  #echo "deb [allow-insecure=true trusted=true] https://developer.download.nvidia.com/compute/machine-learning/repos/${OS_NAME}/x86_64/ /" >> /etc/apt/sources.list.d/cuda.list
+
+  echo "[global]" > /etc/pip.conf && \
+      echo "index-url = https://mirrors.aliyun.com/pypi/simple/" >> /etc/pip.conf
+  #apt-get update && apt-get install --yes nano
+  #python3 -m pip installl XXX
+}
+
+is_in_docker()
+{
+  local s
+  s=$(df|grep ^overlay|head -n1| sed "s|.*%[ \t\r\n]*||")
+  test "$s" = "/" && return 0
+  return -1
+}
+
+main(){
+  mkdir -p ${ARCHIVES_DIR}
+  rm -rf ${ARCHIVES_DIR}/{lock,partial}
+  docker run -it \
+  -v ${ARCHIVES_DIR}:/var/cache/apt/archives \
+  -v `pwd`:`pwd` \
+  -w `pwd` \
+  --name ${TEMP_DOCK_NAME} \
+  ${OS_TAG} \
+  bash build_env install && \
+  docker commit ${TEMP_DOCK_NAME} ${ENV_NAME} && \
+  docker rm ${TEMP_DOCK_NAME}
+}
+
+if test "$1" = "install";then
+  is_in_docker || exit 1
+  install
+else
+    is_in_docker && exit 2
+    main
+fi
