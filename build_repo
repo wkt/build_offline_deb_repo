@@ -1,6 +1,6 @@
 #!/bin/bash
 
-test -z "${OS_NAME}" && OS_NAME=ubuntu:16.04
+test -z "${OS_NAME}" && OS_NAME=ubuntu:18.04
 IMAGE=${OS_NAME}
 
 test "${OS_NAME}" = "ubuntu:16.04" && IMAGE=ubuntu:xenial-20160422
