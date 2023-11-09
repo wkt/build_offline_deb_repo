@@ -11,6 +11,7 @@ ENV_NAME=cann:v1 # 生成的docker镜像名称
 TEMP_DOCK_NAME="env_$(date "+%Y_%m_%d-%H_%M")"
 MIRROR=mirrors.aliyun.com
 MIRROR=mirrors.huaweicloud.com
+MIRROR=mirrors.tuna.tsinghua.edu.cn
 
 
 install(){
@@ -24,10 +25,11 @@ install(){
   # cuda and cudnn
   #curl -fsSL https://mirrors.aliyun.com/nvidia-cuda/${OS_NAME}/x86_64/7fa2af80.pub | apt-key add -
   #echo "deb [allow-insecure=true trusted=true] https://mirrors.aliyun.com/nvidia-cuda/${OS_NAME}/x86_64/ /" > /etc/apt/sources.list.d/cuda.list && \
-  #echo "deb [allow-insecure=true trusted=true] https://developer.download.nvidia.com/compute/machine-learning/repos/${OS_NAME}/x86_64/ /" >> /etc/apt/sources.list.d/cuda.list
+  #echo "deb [allow-insecure=true trusted=true] https://mirrors.aliyun.com/nvidia-machine-learning/${OS_NAME}/x86_64/ /" >> /etc/apt/sources.list.d/cuda.list
 
-  echo "[global]" > /etc/pip.conf && \
-      echo "index-url = https://mirrors.aliyun.com/pypi/simple/" >> /etc/pip.conf
+  #echo "[global]" > /etc/pip.conf && echo "index-url = https://mirrors.aliyun.com/pypi/simple/" >> /etc/pip.conf
+  echo "[global]" > /etc/pip.conf && echo "index-url = https://pypi.tuna.tsinghua.edu.cn/simple" >> /etc/pip.conf
+
   #apt-get update && apt-get install --yes nano
   #python3 -m pip installl XXX
 }
