@@ -23,8 +23,8 @@ function pack_in_docker()
     sed -i "s|archive.ubuntu.com|${MIRROR}|g;s|security.ubuntu.com|${MIRROR}|g;s|deb.debian.org|${MIRROR}|g;s|security.debian.org|${MIRROR}|g;" \
         ${SF} && apt-get update
 
-    apt -o Acquire::https::Verify-Peer=false update # 有些源过不了https的证书校验
-    apt -o Acquire::https::Verify-Peer=false install ca-certificates -y
+    apt-get -o Acquire::https::Verify-Peer=false update # 有些源过不了https的证书校验
+    apt-get -o Acquire::https::Verify-Peer=false install ca-certificates -y
 
     #添加 非官方打包软件的源
     #apt-get install -y --no-install-recommends apt-transport-https gnupg2 ca-certificates curl lsb-release
@@ -39,20 +39,22 @@ function pack_in_docker()
     #curl -fsSL https://mirrors.aliyun.com/nvidia-cuda/${OS_NAME}/x86_64/7fa2af80.pub | apt-key add -
     #echo "deb [allow-insecure=true trusted=true] https://mirrors.aliyun.com/nvidia-cuda/${OS_NAME}/x86_64/ /" > /etc/apt/sources.list.d/cuda.list && \
     #echo "deb [allow-insecure=true trusted=true] https://developer.download.nvidia.com/compute/machine-learning/repos/${OS_NAME}/x86_64/ /" >> /etc/apt/sources.list.d/cuda.list
-    #echo "deb [allow-insecure=true trusted=true] https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH) /" >/etc/apt/sources.list.d/nvidia-container-toolkit.list
+    echo "deb [allow-insecure=true trusted=true] https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH) /" >/etc/apt/sources.list.d/nvidia-container-toolkit.list
 
 
-    apt-get update
+    apt-get -o Acquire::https::Verify-Peer=false update
     PACKS=$* # 想要离线安装的软件包
     # shellcheck disable=SC2086
-    apt-get install --yes --no-install-recommends ${PACKS} || { bash ; exit 255;}
-    apt-get install --yes --no-install-recommends dpkg-dev gzip #生成本地源的必要依赖
+    apt-get install -o Acquire::https::Verify-Peer=false --yes --no-install-recommends ${PACKS} || { bash ; exit 255;}
+    apt-get install -o Acquire::https::Verify-Peer=false --yes --no-install-recommends dpkg-dev gzip #生成本地源的必要依赖
 
     PACK_DIR=/pack
     PWD=$(pwd)
-    sed "s|@PACKAGE_NAMES@|$*|g" ${PWD}/install.sh >${PACK_DIR}/install.sh
+    TM=$(date '+%s')
+    sed "s|@PACKAGE_NAMES@|$*|g;s|@TM@|${TM}|g" ${PWD}/install.sh >${PACK_DIR}/install.sh
     rm -rf ${PACK_DIR}/archives/{lock,partial}
 
+    chmod +r ${PACK_DIR}/archives/*.deb
     set -x
     ( cd ${PACK_DIR}; dpkg-scanpackages -m . > ${PACK_DIR}/Packages ; cat ${PACK_DIR}/Packages |gzip -r >Packages.gz; )
 }
@@ -67,7 +69,11 @@ function pack()
     PACK_DIR=pack_$(date +"%Y-%m-%d-%H")
     mkdir -p "${PACK_DIR}/archives";
     # shellcheck disable=SC2086
-    docker run -it --rm -v "${PWD}/${PACK_DIR}":/pack \
+    docker run -it --rm \
+            --env HTTP_PROXY="http://172.17.0.1:8118" \
+            --env HTTPS_PROXY="http://172.17.0.1:8118" \
+            --env NO_PROXY="localhost,127.0.0.1,172.16.*,127.0.0.*,192.168.*,*.fit2cloud.com;*.tencent.com" \
+            -v "${PWD}/${PACK_DIR}":/pack \
             -v "${PWD}/${PACK_DIR}/archives":/var/cache/apt/archives \
             -v "${PWD}":"${PWD}" \
             --workdir "${PWD}" -e OS_NAME=${OS_NAME} ${IMAGE} bash build_repo pack_in_docker $* \
